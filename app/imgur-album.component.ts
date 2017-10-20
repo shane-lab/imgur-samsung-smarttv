@@ -21,12 +21,24 @@ import { IAlbum, IImage } from './imgur.service';
                 </div>
             </div>
             <div class="post-container">
-                <div class="post" *ngFor="let image of album.images; let i = index">
+                <div class="post" *ngFor="let image of album.images; let i = index" [ngClass]="{ 'no-description': !image.description }">
                     <div class="image-container">
                         <img class="image" src="{{image.link}} | safe" />
                     </div>
-                    <div *ngIf="image.description" class="meta">
-                        <p [innerHTML]="image.description"></p>
+                    <div *ngIf="image.description" class="image-meta">
+                        <p class="description" [innerHTML]="image.description | tags"></p>
+                    </div>
+                </div>
+                <div class="post-meta" [ngClass]="{ 'divider': requiresDivider() }">
+                    <div *ngIf="authenticated" class="actions">
+                        <!-- once authenticated, allow for up/down votes, favorite, flag etc. -->
+                    </div>
+                    <div class="rating">
+                        <span class="stats"><span>{{album.points}} Points</span> <span>{{album.views}} Views</span></span>
+                        <div *ngIf="album.tags" class="tags" [ngClass]="{ 'no-actions': authenticated }">
+                            <span *ngFor="let tag of album.tags" class="tag">{{tag.name}}</span>
+                        </div>
+                        <div class="clear"></div>
                     </div>
                 </div>
             </div>
@@ -154,10 +166,15 @@ import { IAlbum, IImage } from './imgur.service';
 
         .post-container {
             border-radius: 0 0 4px 4px;
+            color: #fff;
         }
 
         .post-container .post {
             padding-bottom: 20px;
+        }
+
+        .post-container .post.no-description {
+            padding-bottom: 0;
         }
 
         .post-container .post .image-container {
@@ -172,27 +189,102 @@ import { IAlbum, IImage } from './imgur.service';
             max-width: 100%;
         }
 
-        .post-container .post .meta {
+        .post-container .post .image-meta {
             padding: 20px 20px 35px;
         }
         
-        .post-container .post .meta:last-of-type {
+        .post-container .post .image-meta:last-of-type {
             padding-bottom: 0;
         }
 
-        .post-container .post .meta .description {
+        .post-container .post .image-meta .description {
             line-height: 19px;
             word-wrap: break-word;
             white-space: pre-wrap;
             padding: 0;
+            margin: 0;
         }
+
+        .post-container .post-meta {
+            padding: 20px;
+            margin-top: -1px;
+            min-height: 45px;
+        }
+
+        .post-container .post-meta.divider {
+            border-top: 2px solid #53555b;
+            padding-top: 40px;
+        }
+
+        /** up/down vote, favorite */
+        .post-container .post-meta .actions {
+            display: none;
+        }
+
+        .post-container .post-meta .rating {
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .post-container .post-meta .rating .stats span:first-of-type {
+            margin-right: 30px;
+        }
+
+        .post-container .post-meta .rating .tags {
+            float: right;
+            max-width: 360px;
+            margin-top: -10px;
+        }
+
+        .post-container .post-meta .rating .tags .tag {
+            float: right;
+            background: #494a4f;
+            border-radius: 99px;
+            padding: 3px 13px 5px 13px;
+            margin: 10px 0 0 10px;
+            display: inline-block;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .post-container .post-meta .rating .tags.no-actions .tag {
+            margin-top: 0;
+        }
+
+        .clear {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font: inherit;
+            vertical-align: baseline;
+        }
+
+        .clear::before, clear::after {
+            content: " ";
+            display: table;
+        }
+
+        .clear::after {
+            clear: both;
+        }
+
     `]
 })
 export class ImgurAlbumComponent {
 
     @Input() album: IAlbum;
 
+    private authenticated: boolean = false;
+
     constructor(private elementRef: ElementRef) { }
+
+    private requiresDivider() {
+        if (!this.album || (this.album && !this.album.images)) {
+            return false;
+        }
+
+        return this.album.images.filter(image => image.description).length >= 1;
+    }
 
     public onKeyDown(keyCode: number) {
 
