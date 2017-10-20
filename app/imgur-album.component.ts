@@ -1,4 +1,4 @@
-import { Component, Input, Output, ElementRef, OnInit } from '@angular/core';
+import { Component, Input, Output, ElementRef } from '@angular/core';
 
 import { IAlbum, IImage } from './imgur.service';
 
@@ -17,7 +17,17 @@ import { IAlbum, IImage } from './imgur.service';
                     <h1 class="title" [innerHTML]="album.title"></h1>
                 </div>
                 <div class="user-meta">
-                    <p>by <span class="user">{{album.account_url}}</span> <span>{{album.datetime}}</span></p>
+                    <p>by <span class="user">{{album.account_url}}</span> <span>{{(album.datetime * 1000) | since}}</span></p>
+                </div>
+            </div>
+            <div class="post-container">
+                <div class="post" *ngFor="let image of album.images; let i = index">
+                    <div class="image-container">
+                        <img class="image" src="{{image.link}} | safe" />
+                    </div>
+                    <div *ngIf="image.description" class="meta">
+                        <p [innerHTML]="image.description"></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -141,13 +151,50 @@ import { IAlbum, IImage } from './imgur.service';
             color: #7789ff;
             font-weight: 700;
         }
+
+        .post-container {
+            border-radius: 0 0 4px 4px;
+        }
+
+        .post-container .post {
+            padding-bottom: 20px;
+        }
+
+        .post-container .post .image-container {
+            text-align: center;
+            background: #000;
+            position: relative;
+        }
+
+        .post-container .post .image-container .image {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+        .post-container .post .meta {
+            padding: 20px 20px 35px;
+        }
+        
+        .post-container .post .meta:last-of-type {
+            padding-bottom: 0;
+        }
+
+        .post-container .post .meta .description {
+            line-height: 19px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            padding: 0;
+        }
     `]
 })
-export class ImgurAlbumComponent implements OnInit {
+export class ImgurAlbumComponent {
 
     @Input() album: IAlbum;
 
     constructor(private elementRef: ElementRef) { }
 
-    ngOnInit() { }
+    public onKeyDown(keyCode: number) {
+
+    }
 }

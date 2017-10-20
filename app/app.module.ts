@@ -16,10 +16,11 @@ import { LocalDirective } from './local.directive';
 
 import { SafeUrlPipe } from './safeurl.pipe';
 import { RoundPipe } from './round.pipe';
+import { SincePipe } from './since.pipe';
 
 @NgModule({
   imports:      [ CommonModule, BrowserModule, FormsModule, HttpModule, LazyLoadImageModule ],
-  declarations: [ AppComponent, ImgurAlbumComponent, ImgurCommentComponent, PreloaderComponent, SafeUrlPipe, RoundPipe, LocalDirective ],
+  declarations: [ AppComponent, ImgurAlbumComponent, ImgurCommentComponent, PreloaderComponent, SafeUrlPipe, RoundPipe, SincePipe, LocalDirective ],
   bootstrap:    [ AppComponent ]
 })
 export class AppModule { }

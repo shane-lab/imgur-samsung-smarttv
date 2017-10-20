@@ -169,8 +169,6 @@ export class ImgurService {
                         return reject(new Error(result.data.error.message || 'No items were found'));
                     }
 
-                    console.log(result.endpoint);
-
                     resolve(result.data);
                 }, error => {
                     return reject(error || new Error(`Server error, possible outdated api endpoint '${endpoint}'`))
