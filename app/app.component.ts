@@ -22,8 +22,8 @@ enum CategoryType { TOPIC, GALLERY }
     template: `
         <nav></nav>
         <div class="container">
-            <div class="categories"
-                [ngClass]="{selected: mode === 0}"
+            <div *ngIf="!isFullscreen()" class="categories"
+                [ngClass]="{ 'selected': mode === 0 }"
                 [ngStyle]="{ 
                     'height': 'calc(100% + '+ (categoryListHeight) +'px)',
                     'top': -(categoryListHeight) + 'px'
@@ -32,7 +32,7 @@ enum CategoryType { TOPIC, GALLERY }
                     id="{{category.id}}"
                     class="category"
                     (click)="onCategoryClick(category)" 
-                    [ngClass]="{odd: odd, selected: i === categoryIndex || category === activeCategory}" 
+                    [ngClass]="{'odd': odd, 'selected': i === categoryIndex || category === activeCategory}" 
                     [ngStyle]="{
                         'background-image': 'linear-gradient('+getCategoryGradient(i)+'), url('+(category.thumbnail)+')', 
                         'background-size': 'cover', 
@@ -42,19 +42,18 @@ enum CategoryType { TOPIC, GALLERY }
                     <p>{{category.description}}</p>
                 </div>
             </div>
-            <main id="main">
+            <main id="main" [ngClass]="{ 'fullscreen': isFullscreen(), 'selected': mode === 1 }">
                 <ng-container *ngIf="!error">
                     <div class="albums"
                         *ngIf="albums" 
                         [hidden]="activeAlbum"
-                        [ngClass]="{selected: mode === 1}"
                         [ngStyle]="{
                             'height': 'calc(100% + '+ (albumListHeight) +'px)',
                             'top': -(albumListHeight) + 'px'
                         }">
                         <div class="cover" *ngFor="let album of albums; let i = index" 
                             (click)="onAlbumClick(album)"
-                            [ngClass]="{selected: i === albumIndex}">
+                            [ngClass]="{ 'selected': i === albumIndex }">
                             <img id="{{album.id}}" [ngClass]="{nsfw: album.nsfw}" [src]="'https://i.imgur.com/'+ (album.cover ? album.cover : album.id) +'b.jpg'" />
                             <div class="caption">{{album.title}}</div>
                         </div>
@@ -77,6 +76,19 @@ enum CategoryType { TOPIC, GALLERY }
             right: 0;
             bottom: 0;
             margin: 12px;
+            opacity: 0.5;
+        }
+
+        #main.fullscreen {
+            left: 0;
+        }
+
+        #main.fullscreen .albums {
+            margin-left: 108px;
+        }
+
+        #main.selected {
+            opacity: 1
         }
 
         #main .error {
@@ -188,13 +200,13 @@ enum CategoryType { TOPIC, GALLERY }
             box-shadow: 0 1px 2px #080808;
         }
 
-        .albums .cover {
+        /*.albums .cover {
             opacity: 0.5;
         }
 
         .albums.selected .cover {
             opacity: 1;
-        }
+        }*/
 
         .albums .cover.selected {
             background: #00af7b;
@@ -253,6 +265,8 @@ export class AppComponent {
     private activeAlbum: IAlbum;
 
     private albums: IAlbum[];
+
+    private fullscreen = false;
 
     @ViewChild(ImgurAlbumComponent)
     private albumComponent: ImgurAlbumComponent;
@@ -321,6 +335,10 @@ export class AppComponent {
         return local ? `assets/categories/${local && !category.isTopic ? category.id : 'missing'}.png` : (category as ITopicCategory).heroImage.link;
     }
 
+    private isFullscreen() {
+        return this.fullscreen && this.mode === Mode.Gallery; 
+    }
+
     @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
     public handleKeyboardEvent(event: Event & { keyCode: number }) {
         if (this.mode === Mode.Loading) {
@@ -332,11 +350,23 @@ export class AppComponent {
         if (keyCode === SamsungAPI.tvKey.KEY_TOOLS) {
             return this.mode = this.mode !== Mode.Category ? Mode.Category : Mode.Gallery;
         }
+        if (event.keyCode === SamsungAPI.tvKey.KEY_INFO) {
+            this.fullscreen = !this.fullscreen;
+        }
 
         if (this.mode === Mode.Category) {
-            this.handleCategoriesNav(keyCode)
-        } else {
-            this.handleGalleryNav(keyCode);
+            return this.handleCategoriesNav(keyCode)
+        }
+        if (this.mode === Mode.Gallery && !this.activeAlbum) {
+            return this.handleGalleryNav(keyCode);
+        }
+        if (this.activeAlbum) {
+            if (this.albumComponent) {
+                this.albumComponent.onKeyDown(keyCode);
+            }
+            if (event.keyCode === SamsungAPI.tvKey.KEY_RETURN) {
+                this.activeAlbum = null;
+            }
         }
     }
 
@@ -378,13 +408,12 @@ export class AppComponent {
         if (this.mode !== Mode.Gallery || !this.albums) {
             return;
         }
+        
+        const indices = this.fullscreen ? 6 : 5;
 
         switch(keyCode) {
             case SamsungAPI.tvKey.KEY_ENTER:
                 this.onAlbumClick(this.albums[this.albumIndex]);
-                break;
-            case SamsungAPI.tvKey.KEY_RETURN:
-                this.activeAlbum = null;
                 break;
             case SamsungAPI.tvKey.KEY_LEFT:
                 if (this.albumIndex > 0) {
@@ -399,7 +428,7 @@ export class AppComponent {
             case SamsungAPI.tvKey.KEY_UP:
             case SamsungAPI.tvKey.KEY_DOWN:
                 let index = this.albumIndex;
-                index += keyCode === SamsungAPI.tvKey.KEY_UP ? -5 : 5;
+                index += keyCode === SamsungAPI.tvKey.KEY_UP ? -indices : indices;
 
                 const length = this.albums.length - 1;
                 index = index < 0 ? 0 : index > length - 1 ? length : index;
@@ -408,6 +437,6 @@ export class AppComponent {
                 break;
         }
 
-        this.albumListHeight = (this.albumIndex > 4 ? (174 * Math.floor(this.albumIndex / 5)) : 0)
+        this.albumListHeight = (this.albumIndex > (indices - 1) ? (174 * Math.floor(this.albumIndex / indices)) : 0)
     }
 }
