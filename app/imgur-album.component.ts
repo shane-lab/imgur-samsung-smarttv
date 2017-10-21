@@ -1,11 +1,11 @@
-import { Component, Input, Output, ElementRef } from '@angular/core';
+import { Component, Input, Output, ElementRef, OnInit } from '@angular/core';
 
-import { IAlbum, IImage } from './imgur.service';
+import { ImgurService, IAlbum, IImage, IComment } from './imgur.service';
 
 @Component({
     selector: 'imgur-album',
     template: `
-        <div class="container">
+        <div class="album-container">
             <div class="header">
                 <div class="pagination">
                     <div class="btn prev">&laquo;</div>
@@ -22,8 +22,9 @@ import { IAlbum, IImage } from './imgur.service';
             </div>
             <div class="post-container">
                 <div class="post" *ngFor="let image of album.images; let i = index" [ngClass]="{ 'no-description': !image.description }">
-                    <div class="image-container">
-                        <img class="image" src="{{image.link}} | safe" />
+                    <div id="image-{{image.id}}" class="image-container" [style.minHeight.px]="getMinHeight(image)">
+                        <video class="image" *ngIf="image.animated === true" [src]="image.mp4 | safe" autoplay="autoplay" loop="loop" muted="muted"></video>
+                        <img class="image" *ngIf="!image.animated" src="{{image.link}} | safe" />
                     </div>
                     <div *ngIf="image.description" class="image-meta">
                         <p class="description" [innerHTML]="image.description | tags"></p>
@@ -43,13 +44,30 @@ import { IAlbum, IImage } from './imgur.service';
                 </div>
             </div>
         </div>
+
+        <div *ngIf="album.comment_count" class="comments-container">
+            <imgur-comment *ngFor="let comment of comments" [comment]="comment" [albumAuthorId]="album.account_id"></imgur-comment>
+            <preloader *ngIf="!comments"></preloader>
+        </div>
     `,
     styles: [`
-        .container {
+    
+        :host {
+            display: block;
+            left: 0;
+
             width: 100%;
             min-height: 100%;
+        }
+
+        .album-container {
             border-radius: 5px;
             background: #2c2f34;
+        }
+
+        .comments-container {
+            margin-top: 20px;
+            position: relative;
         }
 
         .header {
@@ -173,7 +191,7 @@ import { IAlbum, IImage } from './imgur.service';
             padding-bottom: 20px;
         }
 
-        .post-container .post.no-description {
+        .post-container .post.no-description:last-of-type {
             padding-bottom: 0;
         }
 
@@ -268,15 +286,41 @@ import { IAlbum, IImage } from './imgur.service';
             clear: both;
         }
 
-    `]
+    `],
+    providers: [ImgurService]
 })
-export class ImgurAlbumComponent {
+export class ImgurAlbumComponent implements OnInit {
 
     @Input() album: IAlbum;
 
+    private comments: IComment[];
+
     private authenticated: boolean = false;
 
-    constructor(private elementRef: ElementRef) { }
+    constructor(private service: ImgurService, private elementRef: ElementRef) { }
+
+    ngOnInit() {
+        if (!this.album) {
+            return;
+        }
+
+        if (!this.album.is_album) {
+            this.album.images = [this.album];
+        }
+
+        this.service.getComments(this.album.id)
+            .then(comments => this.comments = comments);
+    }
+
+    private getMinHeight(image: IImage) {
+        const container = (this.elementRef.nativeElement as HTMLElement).querySelector(`#image-${image.id}`);
+
+        if (!container) {
+            return null;
+        }
+
+        return image.width / container.clientWidth > 1 ? container.clientWidth / image.width * image.height : image.height;
+    }
 
     private requiresDivider() {
         if (!this.album || (this.album && !this.album.images)) {
@@ -287,6 +331,6 @@ export class ImgurAlbumComponent {
     }
 
     public onKeyDown(keyCode: number) {
-
+        
     }
 }

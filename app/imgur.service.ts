@@ -6,25 +6,6 @@ import { Observable } from 'rxjs/RX';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
-export interface IAlbum {
-    id: string,
-    title: string,
-    description?: string,
-    datetime: number,
-    account_url: string,
-    animated?: boolean,
-    cover: string,
-    cover_width: number,
-    cover_height: number,
-    comment_count: number,
-    ups: number,
-    downs: number,
-    views: number,
-    nsfw: boolean,
-    images: IImage[],
-    tags: {name: string}[]
-}
-
 export interface IImage {
     id: string,
     type: string,
@@ -33,12 +14,31 @@ export interface IImage {
     width: number,
     height: number,
     link: string
+    animated?: boolean,
+}
+
+export interface IAlbum extends IImage {
+    datetime: number,
+    account_url: string,
+    account_id: number,
+    cover: string,
+    cover_width: number,
+    cover_height: number,
+    comment_count: number,
+    is_album: boolean,
+    ups: number,
+    downs: number,
+    views: number,
+    nsfw: boolean,
+    images: IImage[],
+    tags: {name: string}[]
 }
 
 export interface IComment {
     id: number,
     comment: string,
     author: string,
+    author_id: number,
     datetime: number,
     ups: number,
     downs: number,
@@ -137,7 +137,7 @@ export class ImgurService {
      * @param albumId 
      */
     public getComments(albumId: string) {
-        return this.requestQ<Comment[]>(ROUTES.COMMENTS, { albumId });
+        return this.requestQ<IComment[]>(ROUTES.COMMENTS, { albumId });
     }
 
     /**
