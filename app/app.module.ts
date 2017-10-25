@@ -13,6 +13,7 @@ import { ImgurCommentComponent } from './imgur-comment.component';
 import { PreloaderComponent } from './preloader.component';
 
 import { LocalDirective } from './local.directive';
+import { ScrollEventDirective } from './scroll-event.directive';
 
 import { SafeUrlPipe } from './safeurl.pipe';
 import { RoundPipe } from './round.pipe';
@@ -21,7 +22,7 @@ import { TagsPipe } from './tags.pipe';
 
 @NgModule({
   imports:      [ CommonModule, BrowserModule, FormsModule, HttpModule, LazyLoadImageModule ],
-  declarations: [ AppComponent, ImgurAlbumComponent, ImgurCommentComponent, PreloaderComponent, SafeUrlPipe, RoundPipe, SincePipe, TagsPipe, LocalDirective ],
+  declarations: [ AppComponent, ImgurAlbumComponent, ImgurCommentComponent, PreloaderComponent, SafeUrlPipe, RoundPipe, SincePipe, TagsPipe, LocalDirective, ScrollEventDirective ],
   bootstrap:    [ AppComponent ]
 })
 export class AppModule { }

@@ -27,7 +27,9 @@
       'rxjs': 'npm:rxjs',
       'angular2-in-memory-web-api': 'npm:angular2-in-memory-web-api',
       'text': 'plugin-text.js',
+      'gsap': 'npm:gsap/TweenMax.js',
       'ng-lazyload-image': 'npm:ng-lazyload-image',
+      'computed-styles': 'npm:computed-styles/src/index.js',
 
       //shims
       'core-js-shim':'npm:core-js/client/shim.min.js',

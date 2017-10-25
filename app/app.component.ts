@@ -1,4 +1,4 @@
-import { Component, ViewChild, HostListener } from '@angular/core';
+import { Component, ViewChild, HostListener, ChangeDetectorRef } from '@angular/core';
 
 import { ImgurAlbumComponent } from './imgur-album.component';
 
@@ -17,6 +17,8 @@ enum Mode {
 
 enum CategoryType { TOPIC, GALLERY }
 
+declare type PaginatedAlbum = { albums: IAlbum[], index: number };
+
 @Component({
     selector: 'my-app',
     template: `
@@ -32,7 +34,10 @@ enum CategoryType { TOPIC, GALLERY }
                     id="{{category.id}}"
                     class="category"
                     (click)="onCategoryClick(category)" 
-                    [ngClass]="{'odd': odd, 'selected': i === categoryIndex || category === activeCategory}" 
+                    [ngClass]="{
+                        'odd': odd, 
+                        'selected': i === categoryIndex || category === activeCategory
+                    }" 
                     [ngStyle]="{
                         'background-image': 'linear-gradient('+getCategoryGradient(i)+'), url('+(category.thumbnail)+')', 
                         'background-size': 'cover', 
@@ -42,13 +47,17 @@ enum CategoryType { TOPIC, GALLERY }
                     <p>{{category.description}}</p>
                 </div>
             </div>
-            <main id="main" [ngClass]="{ 'fullscreen': isFullscreen(), 'selected': mode === 1 }">
+            <main id="main" 
+                [ngClass]="{ 
+                    'fullscreen': isFullscreen(), 
+                    'selected': mode === 1 
+                }">
                 <ng-container *ngIf="!error">
                     <div class="albums"
                         *ngIf="albums" 
-                        [hidden]="activeAlbum"
+                        [hidden]="activeAlbum || mode === -1"
                         [ngStyle]="{
-                            'height': 'calc(100% + '+ (albumListHeight) +'px)',
+                            
                             'top': -(albumListHeight) + 'px'
                         }">
                         <div class="cover" *ngFor="let album of albums; let i = index" 
@@ -59,9 +68,9 @@ enum CategoryType { TOPIC, GALLERY }
                         </div>
                     </div>
 
-                    <imgur-album *ngIf="activeAlbum" [album]="activeAlbum"></imgur-album>
+                    <imgur-album *ngIf="activeAlbum" [hidden]="mode === -1" [album]="activeAlbum" [hasPrevious]="albumIndex > 0 && albumPageIndex >= 0"></imgur-album>
 
-                    <preloader *ngIf="mode === -1" [caption]="activeCategory ? 'Loading gallery for '+ (activeCategory.name) : ''"></preloader>
+                    <preloader *ngIf="mode === -1" [caption]="activeCategory ? 'Loading gallery for '+ (activeCategory.name + ', page ' + (albumPageIndex + 1)) : ''"></preloader>
                 </ng-container>
                 <h1 class="error" *ngIf="error">{{error}}</h1>
             </main>
@@ -76,7 +85,19 @@ enum CategoryType { TOPIC, GALLERY }
             right: 0;
             bottom: 0;
             margin: 12px;
+            /*overflow: auto;*/
+        }
+
+        #main > * {
             opacity: 0.5;
+        }
+        
+        #main.selected > * {
+            opacity: 1
+        }
+
+        #main > preloader {
+            opacity: 1 !important;
         }
 
         #main.fullscreen {
@@ -85,10 +106,6 @@ enum CategoryType { TOPIC, GALLERY }
 
         #main.fullscreen .albums {
             margin-left: 108px;
-        }
-
-        #main.selected {
-            opacity: 1
         }
 
         #main .error {
@@ -184,6 +201,7 @@ enum CategoryType { TOPIC, GALLERY }
 
         .albums {
             position: relative;
+            min-width: 870px;
         }
         
         .albums .cover {
@@ -258,9 +276,11 @@ export class AppComponent {
 
     private activeCategory: ICategory;
 
-    private categories: Array<ICategory & { thumbnail?: string}> = [];
+    private categories: Array<ICategory & { thumbnail?: string }> = [];
 
     private albumIndex = 0;
+
+    private albumPageIndex = 0;
 
     private activeAlbum: IAlbum;
 
@@ -271,7 +291,7 @@ export class AppComponent {
     @ViewChild(ImgurAlbumComponent)
     private albumComponent: ImgurAlbumComponent;
 
-    constructor(private service: ImgurService) {
+    constructor(private service: ImgurService, private cdr: ChangeDetectorRef) {
         this.service.getCategories()
             .then(categories => this.categories = categories.map(category => (category['thumbnail'] = this.getCategoryThumbnail(category), category)))
             .catch(err => this.error = err)
@@ -305,27 +325,65 @@ export class AppComponent {
             .catch(err => (console.warn('undefined category: ', err), this.categoryIndex = 0, category = this.categories[0]))
             .then(() => (this.activeCategory = category, this.service.getAlbums(category)))
             .catch(err => (console.dir(err), this.error = err))
-            .then(albums => (this.mode = Mode.Gallery, console.log(albums), this.albums = albums));
+            .then(albums => (this.mode = Mode.Gallery, this.albums = albums))
+            .then(() => this.measureHeightAndPosition());
     }
 
-    private onAlbumClick(album: IAlbum) {
+    private async onAlbumClick(album: IAlbum) {
         if (!album) {
-            return;
+            this.activeAlbum = null;
+            return
         }
 
         this.activeAlbum = album;
 
-        this.albumIndex = this.albums.findIndex(value => value === album);
+        const index = this.albumIndex = this.albums.findIndex(value => value === album);
+        this.cdr.detectChanges();
+
+        const component = await this.albumComponent;
+
+        if (component) {
+            component.requestNew.subscribe((next: number = 1) =>
+                this.fetchAlbumById(this.albumIndex + next)
+                    .then(result => (this.albums = result.albums, result.index))
+                    .then(index => (this.activeAlbum = this.albums[index], this.albumIndex = index))
+                    .then(() => this.measureHeightAndPosition())
+            );
+        }
+    }
+
+    private async fetchAlbumById(index: number): Promise<PaginatedAlbum> {
+        const prevPage = this.albumPageIndex;
+
+        let prev = false;
+        if (index < 0 && this.albumPageIndex > 0) {
+            this.albumPageIndex--;
+            prev = true;
+        }
+
+        if (index > this.albums.length - 1) {
+            index = 0;
+            this.albumPageIndex++;
+        }
+
+        let albums = this.albums;
+        if (this.albumPageIndex != prevPage) {
+            albums = await this.service.getAlbums(this.activeCategory, this.albumPageIndex);
+        }
+
+        index = prev ? albums.length - 1 : index < 0 ? 0 : index;
+
+        return { albums, index };
     }
 
     private getCategoryGradient(index: number) {
         const isSelected = this.categoryIndex === index;
         const isActive = this.activeCategory === this.categories[index];
-        
+
         const rgb = isSelected || isActive ? '85, 176, 60' : '0, 0, 0';
 
         const opacity = !isSelected && !isActive ? 0.8 : isActive ? 0.4 : 0.2;
-        
+
         return `rgba(${rgb}, ${opacity}), rgba(${rgb}, ${opacity})`;
     }
 
@@ -336,7 +394,15 @@ export class AppComponent {
     }
 
     private isFullscreen() {
-        return this.fullscreen && this.mode === Mode.Gallery; 
+        return this.fullscreen && this.mode === Mode.Gallery;
+    }
+
+    private measureHeightAndPosition() {
+        this.categoryListHeight = (this.categoryIndex > 0 ? (182 * ((this.categoryIndex - (this.categoryIndex % 2 === 0 ? 0 : 1)) / 2)) : 0);
+
+        const indices = this.fullscreen ? 6 : 5;
+
+        this.albumListHeight = (this.albumIndex > (indices - 1) ? (174 * Math.floor(this.albumIndex / indices)) : 0);
     }
 
     @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
@@ -348,17 +414,17 @@ export class AppComponent {
         const { keyCode } = event;
 
         if (keyCode === SamsungAPI.tvKey.KEY_TOOLS) {
-            return this.mode = this.mode !== Mode.Category ? Mode.Category : Mode.Gallery;
+            this.mode = this.mode !== Mode.Category ? Mode.Category : Mode.Gallery;
         }
         if (event.keyCode === SamsungAPI.tvKey.KEY_INFO) {
             this.fullscreen = !this.fullscreen;
         }
 
         if (this.mode === Mode.Category) {
-            return this.handleCategoriesNav(keyCode)
+            this.handleCategoriesNav(keyCode)
         }
         if (this.mode === Mode.Gallery && !this.activeAlbum) {
-            return this.handleGalleryNav(keyCode);
+            this.handleGalleryNav(keyCode);
         }
         if (this.activeAlbum) {
             if (this.albumComponent) {
@@ -368,6 +434,8 @@ export class AppComponent {
                 this.activeAlbum = null;
             }
         }
+
+        this.measureHeightAndPosition();
     }
 
     private handleCategoriesNav(keyCode: number) {
@@ -375,7 +443,7 @@ export class AppComponent {
             return;
         }
 
-        switch(keyCode) {
+        switch (keyCode) {
             case SamsungAPI.tvKey.KEY_ENTER:
                 this.onCategoryClick(this.categories[this.categoryIndex])
                 break;
@@ -400,33 +468,43 @@ export class AppComponent {
                 this.categoryIndex = index;
                 break;
         }
-        
-        this.categoryListHeight = (this.categoryIndex > 0 ? (182 * ((this.categoryIndex - (this.categoryIndex % 2 === 0 ? 0 : 1)) / 2)) : 0)
     }
 
     private handleGalleryNav(keyCode: number) {
         if (this.mode !== Mode.Gallery || !this.albums) {
             return;
         }
-        
-        const indices = this.fullscreen ? 6 : 5;
 
-        switch(keyCode) {
+        switch (keyCode) {
             case SamsungAPI.tvKey.KEY_ENTER:
                 this.onAlbumClick(this.albums[this.albumIndex]);
                 break;
             case SamsungAPI.tvKey.KEY_LEFT:
                 if (this.albumIndex > 0) {
                     this.albumIndex--;
+                } else {
+                    if (this.albumPageIndex > 0) {
+                        this.mode = Mode.Loading;
+                        this.service.getAlbums(this.activeCategory, --this.albumPageIndex)
+                            .then(albums => (this.albums = albums, this.albumIndex = albums.length - 1))
+                            .then(() => (this.mode = Mode.Gallery, this.measureHeightAndPosition()));
+                    }
                 }
                 break;
-            case SamsungAPI.tvKey.KEY_RIGHT: 
+            case SamsungAPI.tvKey.KEY_RIGHT:
                 if (this.albumIndex < this.albums.length - 1) {
                     this.albumIndex++;
+                } else {
+                    this.mode = Mode.Loading;
+                    this.service.getAlbums(this.activeCategory, ++this.albumPageIndex)
+                        .then(albums => (this.albums = albums, this.albumIndex = 0))
+                        .then(() => (this.mode = Mode.Gallery, this.measureHeightAndPosition()));
                 }
                 break;
             case SamsungAPI.tvKey.KEY_UP:
             case SamsungAPI.tvKey.KEY_DOWN:
+                const indices = this.fullscreen ? 6 : 5;
+
                 let index = this.albumIndex;
                 index += keyCode === SamsungAPI.tvKey.KEY_UP ? -indices : indices;
 
@@ -436,7 +514,5 @@ export class AppComponent {
                 this.albumIndex = index;
                 break;
         }
-
-        this.albumListHeight = (this.albumIndex > (indices - 1) ? (174 * Math.floor(this.albumIndex / indices)) : 0)
     }
 }

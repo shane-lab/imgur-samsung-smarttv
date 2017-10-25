@@ -5,7 +5,14 @@ import { IComment } from './imgur.service';
 @Component({
     selector: 'imgur-comment',
     template: `
-        <div class="container" [style.marginBottom.px]="!isChild && folded ? 12 : 0" [ngClass]="{ 'child': isChild, 'has-children': (comment.children.length && level <= 5), 'folded': folded }">
+        <div class="container"
+            (click)="onClick($event)" 
+            [style.marginBottom.px]="!isChild && folded ? 12 : 0" 
+            [ngClass]="{ 
+                'child': isChild, 
+                'has-children': hasChildren(), 
+                'folded': folded 
+            }">
             <div class="comment">
                 <div class="meta">
                     <span class="user">{{comment.author}} <span class="op" *ngIf="comment.author_id === albumAuthorId">OP</span></span> <span>{{comment.ups - comment.downs}} pts</span> <span>{{(comment.datetime * 1000) | since}}</span>
@@ -30,6 +37,10 @@ import { IComment } from './imgur.service';
             border-radius: 6px 6px 6px 0;
             background: #2c2f34;
             color: #fff;
+        }
+
+        .container.has-children {
+            cursor: pointer;
         }
 
         .container.has-children::after {
@@ -124,5 +135,21 @@ export class ImgurCommentComponent implements OnInit {
 
     public unfold(flag: boolean = true) {
         this.folded = !flag;
+    }
+
+    private hasChildren() {
+        if (!this.comment || !this.comment.children) {
+            return false;
+        }
+
+        return this.comment.children.length && this.level <= 5;
+    }
+
+    private onClick(event: Event) {
+        if (!this.hasChildren()) {
+            return;
+        }
+
+        this.unfold(this.folded);
     }
 }
