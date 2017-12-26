@@ -60,7 +60,7 @@ gulp.task('compile_ts', ['clean:ts'], shell.task([
 ]));
 
 gulp.task('copy_assets', function() {
-     return gulp.src(['./assets/*', './widget.info', './config.xml', './SamsungAPI.js'], {base:"."})
+     return gulp.src(['./assets/**', './widget.info', './config.xml', './SamsungAPI.js'], {base:"."})
         .pipe(gulp.dest('./dist'));
 });
 

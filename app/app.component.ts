@@ -48,6 +48,8 @@ declare type PaginatedAlbum = { albums: IAlbum[], index: number };
                 </div>
             </div>
             <main id="main" 
+                scroll-event 
+                (onScroll)="onScroll($event)"
                 [ngClass]="{ 
                     'fullscreen': isFullscreen(), 
                     'selected': mode === 1 
@@ -62,7 +64,8 @@ declare type PaginatedAlbum = { albums: IAlbum[], index: number };
                         }">
                         <div class="cover" *ngFor="let album of albums; let i = index" 
                             (click)="onAlbumClick(album)"
-                            [ngClass]="{ 'selected': i === albumIndex }">
+                            [ngClass]="{ 'album': (album.is_album && album?.images_count > 1), 'selected': i === albumIndex }"
+                            [attr.data-images]="album.images_count">
                             <img id="{{album.id}}" [ngClass]="{nsfw: album.nsfw}" [src]="'https://i.imgur.com/'+ (album.cover ? album.cover : album.id) +'b.jpg'" />
                             <div class="caption">{{album.title}}</div>
                         </div>
@@ -216,6 +219,24 @@ declare type PaginatedAlbum = { albums: IAlbum[], index: number };
             background: #445e61;
             color: #fff;
             box-shadow: 0 1px 2px #080808;
+        }
+
+        .albums .cover.album:before {
+            content: attr(data-images);
+            position: absolute;
+            display: block;
+            margin-top: 132px;
+            margin-left: 132px;
+            width: 20px;
+            height: 20px;
+            background-color: #212121;
+            box-shadow: 1px 3px 6px 1px #353535;
+            text-align: center;
+            line-height: 20px;
+            border-radius: 28%;
+            border: 1px solid #798c6c;
+            color: #bdbdbd;
+            z-index: 1;
         }
 
         /*.albums .cover {
@@ -405,6 +426,12 @@ export class AppComponent {
         this.albumListHeight = (this.albumIndex > (indices - 1) ? (174 * Math.floor(this.albumIndex / indices)) : 0);
     }
 
+    private onScroll(dir: 1 | -1) {
+        if (this.activeAlbum && this.albumComponent && this.mode !== Mode.Category) {
+            this.albumComponent.scroll(dir);
+        }
+    }
+
     @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
     public handleKeyboardEvent(event: Event & { keyCode: number }) {
         if (this.mode === Mode.Loading) {
@@ -427,7 +454,7 @@ export class AppComponent {
             this.handleGalleryNav(keyCode);
         }
         if (this.activeAlbum) {
-            if (this.albumComponent) {
+            if (this.albumComponent && this.mode !== Mode.Category) {
                 this.albumComponent.onKeyDown(keyCode);
             }
             if (event.keyCode === SamsungAPI.tvKey.KEY_RETURN) {

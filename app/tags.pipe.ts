@@ -9,6 +9,6 @@ export class TagsPipe implements PipeTransform {
     constructor(private sanitizer: DomSanitizer) { }
     
     transform(text: string, color = '#7789ff') {
-        return this.sanitizer.bypassSecurityTrustHtml((text || '').replace(/\#(\w+)/, `<span style="color: ${color} !important">#$1</span>`));
+        return this.sanitizer.bypassSecurityTrustHtml((text || '').replace(/\#(\w+)/g, `<span style="margin-right: 5px; color: ${color} !important">#$1</span>`));
     }
 }

@@ -1,4 +1,4 @@
-import { Component, Input, Output, ElementRef, OnInit, EventEmitter, OnChanges } from '@angular/core';
+import { Component, Input, Output, ElementRef, OnInit, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 
 import { ImgurService, IAlbum, IImage, IComment } from './imgur.service';
 
@@ -298,6 +298,8 @@ declare type Direction = 1 | -1;
 })
 export class ImgurAlbumComponent implements OnInit, OnChanges {
 
+    private lastAlbumId: string = null;
+
     @Input() album: IAlbum;
 
     @Input() hasPrevious: boolean = false;
@@ -319,9 +321,11 @@ export class ImgurAlbumComponent implements OnInit, OnChanges {
     constructor(private service: ImgurService, private elementRef: ElementRef) { }
 
     ngOnInit() {
-        if (!this.album) {
+        if (!this.album || this.album.id === this.lastAlbumId) {
             return;
         }
+
+        this.lastAlbumId = this.album.id;
 
         if (!this.album.is_album) {
             this.album.images = [this.album];
@@ -339,11 +343,16 @@ export class ImgurAlbumComponent implements OnInit, OnChanges {
             hostElement.style.marginTop = '0px';
         }
 
+        if (this.album.is_album && this.album.images.length < this.album.images_count) {
+            this.service.getImages(this.album.id)
+                .then(images => this.album.images.push(...images.splice(this.album.images.length)));
+        }
+
         this.service.getComments(this.album.id)
             .then(comments => this.comments = comments);
     }
 
-    ngOnChanges(changes: any) {
+    ngOnChanges(changes: SimpleChanges) {
         this.ngOnInit();
     }
 
@@ -365,7 +374,7 @@ export class ImgurAlbumComponent implements OnInit, OnChanges {
         return this.album.images.filter(image => image.description).length >= 1;
     }
 
-    private scroll(dir: Direction) {
+    public scroll(dir: Direction) {
         if (this.direction !== dir) {
             this.delta = 0;
         }

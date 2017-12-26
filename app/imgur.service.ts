@@ -30,6 +30,7 @@ export interface IAlbum extends IImage {
     downs: number,
     views: number,
     nsfw: boolean,
+    images_count: number,
     images: IImage[],
     tags: {name: string}[]
 }
@@ -62,7 +63,8 @@ export const ROUTES = {
     GALLERY: 'gallery',
     TOPIC: 'topic',
     TOPICS: 'topics',
-    COMMENTS: 'comments'
+    COMMENTS: 'comments',
+    IMAGES: 'images'
 }
 
 const CATEGORIES: ICategory[] = [{
@@ -138,6 +140,14 @@ export class ImgurService {
      */
     public getComments(albumId: string) {
         return this.requestQ<IComment[]>(ROUTES.COMMENTS, { albumId });
+    }
+
+    /**
+     * 
+     * @param albumId
+     */
+    public getImages(albumId: string) {
+        return this.requestQ<IImage[]>(ROUTES.IMAGES, { albumId });
     }
 
     /**

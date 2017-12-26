@@ -1,0 +1,10 @@
+fix
+    []categories container height
+    []category thumbnail (z index ?)
+    []album thumbnail title (transfrom ?)
+
+todo
+    [x]scroll album post (Tween)
+    [-]unfold album comment (keyboard input)
+    [x]indicator loading new gallery on active album
+    [x]load new gallery on gallery screen
